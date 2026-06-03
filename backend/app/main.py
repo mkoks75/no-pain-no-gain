@@ -1,10 +1,12 @@
+import os
 import time
 from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, users, exercises, plans, sessions, progress
+from fastapi.staticfiles import StaticFiles
+from app.routers import auth, users, exercises, plans, sessions, progress, favorites
 
 app = FastAPI(title="No Pain No Gain API", redirect_slashes=False)
 
@@ -16,12 +18,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Uploads map aanmaken en als static files serveren
+os.makedirs("/app/uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")
+
 app.include_router(auth.router,      prefix="/auth",      tags=["auth"])
 app.include_router(users.router,     prefix="/users",     tags=["users"])
 app.include_router(exercises.router, prefix="/exercises", tags=["exercises"])
 app.include_router(plans.router,     prefix="/plans",     tags=["plans"])
 app.include_router(sessions.router,  prefix="/sessions",  tags=["sessions"])
 app.include_router(progress.router,  prefix="/progress",  tags=["progress"])
+app.include_router(favorites.router, prefix="/favorites", tags=["favorites"])
 
 
 @app.on_event("startup")

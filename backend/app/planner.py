@@ -1,9 +1,13 @@
 """
-Planningsmotor — genereert automatisch een weekschema op basis van:
-- Gebruikersprofiel (doel, wekelijkse settargets)
-- Beschikbare trainingsdagen + locaties
-Gebaseerd op ACSM 2026 richtlijnen.
+Planningsmotor — genereert automatisch een weekschema.
+
+Seeded random voor continuïteit binnen trainingsblokken:
+- Zelfde seed (blok + rotation_bump + user) = zelfde oefeningen die week
+- Nieuw blok of rotation_bump+1 → nieuwe loting
+- Favorieten krijgen ~70% kans, niet-favorieten ~30% (voor variatie)
 """
+import random
+from datetime import date
 from app.db import get_conn
 
 # Mapping: NL spiergroep → spiernamen zoals ze ECHT in de database staan
@@ -20,7 +24,7 @@ MUSCLE_TO_WGER: dict[str, list[str]] = {
     "core":        ["Abs"],
 }
 
-# Splits per aantal trainingsdagen (cycleert als er meer dagen zijn)
+# Splits per aantal trainingsdagen
 SPLITS: dict[int, list[list[str]]] = {
     1: [["borst","rug","schouders","biceps","triceps","quadriceps","hamstrings","billen","kuiten","core"]],
     2: [
@@ -63,60 +67,120 @@ GOAL_PARAMS: dict[str, dict] = {
     "power":       {"sets": 5, "reps": 3,  "rest": 180},
 }
 
+# Referentiedatum voor stabiele bloknummering
+BLOCK_EPOCH = date(2024, 1, 1)
 
-def _get_exercises_for_muscle(cur, muscle: str, location: str, exclude_ids: set) -> list[dict]:
-    names = MUSCLE_TO_WGER.get(muscle, [])
+
+def week_block_number(week_start: date, block_weeks: int) -> int:
+    """Bereken het bloknummer op basis van week_start en bloklengte."""
+    week_index = (week_start - BLOCK_EPOCH).days // 7
+    return week_index // max(block_weeks, 1)
+
+
+def _make_rng(muscle: str, block_number: int, rotation_bump: int, user_id: int) -> random.Random:
+    """Maak een deterministisch seeded RNG per (spiergroep, blok, rotatie, gebruiker)."""
+    seed = hash((muscle, block_number, rotation_bump, user_id)) & 0x7FFFFFFF
+    return random.Random(seed)
+
+
+def _get_candidates(cur, muscle: str, location: str, exclude_ids: set) -> list[dict]:
+    """
+    Haal ALLE passende oefeningen op (geen LIMIT, geen ORDER BY random in SQL).
+    Gesorteerd op id voor determinisme; Python-zijde doet de seeded shuffle.
+    """
+    names   = MUSCLE_TO_WGER.get(muscle, [])
     if not names:
         return []
-
     exclude = list(exclude_ids) if exclude_ids else [0]
 
     if location == "thuis":
-        # Alleen thuis-beschikbare oefeningen
         cur.execute("""
             SELECT id, name_nl, name_en
             FROM exercises
             WHERE is_cardio = FALSE
               AND available_home = TRUE
+              AND hidden = FALSE
               AND id <> ALL(%s)
               AND (muscles_primary && %s::text[] OR muscles_secondary && %s::text[])
-            ORDER BY random()
-            LIMIT 3
+            ORDER BY id
         """, (exclude, names, names))
     else:
-        # Sportschool: gym-only eerst (available_home=FALSE), dan de rest.
-        # Sorteer zo dat thuis-onmogelijke oefeningen bovenaan komen.
+        # Sportschool: gym-only (available_home=FALSE) eerst → benut machines
         cur.execute("""
             SELECT id, name_nl, name_en
             FROM exercises
             WHERE is_cardio = FALSE
               AND available_gym = TRUE
+              AND hidden = FALSE
               AND id <> ALL(%s)
               AND (muscles_primary && %s::text[] OR muscles_secondary && %s::text[])
-            ORDER BY available_home ASC, random()
-            LIMIT 3
+            ORDER BY available_home ASC, id
         """, (exclude, names, names))
 
     return [dict(r) for r in cur.fetchall()]
 
 
-def generate_plan(profile: dict, training_days: list[dict]) -> list[dict]:
+def _select_with_fave_bias(
+    all_exs: list[dict],
+    favorite_ids: set[int],
+    n_ex: int,
+    rng: random.Random,
+) -> list[dict]:
     """
-    profile: {goal, intensity_mode, weekly_set_targets}
-    training_days: [{"date": date_obj, "location": "thuis"|"sportschool"}]
+    Kies n_ex oefeningen met seeded bias (~70% kans op favoriet).
+    Dezelfde rng-seed → zelfde uitkomst binnen een blok.
+    """
+    faves     = [e for e in all_exs if e["id"] in favorite_ids]
+    non_faves = [e for e in all_exs if e["id"] not in favorite_ids]
 
-    Returns list of day dicts:
-    [{"date": ..., "location": ..., "exercises": [{exercise_id, order_idx, ...}]}]
+    rng.shuffle(faves)
+    rng.shuffle(non_faves)
+
+    selected: list[dict] = []
+    for _ in range(n_ex):
+        if not faves and not non_faves:
+            break
+        use_fave = (rng.random() < 0.70 and bool(faves)) or not non_faves
+        if use_fave:
+            selected.append(faves.pop(0))
+        else:
+            selected.append(non_faves.pop(0))
+
+    return selected
+
+
+def generate_plan(
+    profile:       dict,
+    training_days: list[dict],
+    favorite_ids:  set[int]  | None = None,
+    block_number:  int              = 0,
+    rotation_bump: int              = 0,
+    user_id:       int              = 0,
+) -> list[dict]:
+    """
+    Genereer een weekplan.
+
+    profile:       {goal, intensity_mode, weekly_set_targets, block_weeks}
+    training_days: [{"date": date_obj, "location": "thuis"|"sportschool"}]
+    favorite_ids:  set van exercise IDs die de gebruiker favoriet heeft
+    block_number:  deterministisch bloknummer (berekend uit week_start + block_weeks)
+    rotation_bump: handmatige ververs-teller (uit profiles.rotation_bump)
+    user_id:       voor seed-diversiteit tussen gebruikers
+
+    Returns: [{"date": ..., "location": ..., "exercises": [...]}]
     """
     n = min(len(training_days), 6)
     if n == 0:
         return []
 
-    splits       = SPLITS[n]
-    params       = GOAL_PARAMS.get(profile.get("goal", "hypertrofie"), GOAL_PARAMS["hypertrofie"])
-    targets      = profile.get("weekly_set_targets", {})
+    if favorite_ids is None:
+        favorite_ids = set()
 
-    # Bereken frequentie per spiergroep in de split
+    splits  = SPLITS[n]
+    params  = GOAL_PARAMS.get(profile.get("goal", "hypertrofie"), GOAL_PARAMS["hypertrofie"])
+    targets = profile.get("weekly_set_targets", {})
+
+    # Frequentie per spiergroep in deze split
     frequencies: dict[str, int] = {}
     for split in splits:
         for mg in split:
@@ -140,8 +204,11 @@ def generate_plan(profile: dict, training_days: list[dict]) -> list[dict]:
                     sets_today  = max(2, round(weekly_sets / freq))
                     n_ex        = max(1, min(2, round(sets_today / params["sets"])))
 
-                    exs = _get_exercises_for_muscle(cur, mg, location, used_ids)[:n_ex]
-                    for ex in exs:
+                    rng      = _make_rng(mg, block_number, rotation_bump, user_id)
+                    all_exs  = _get_candidates(cur, mg, location, used_ids)
+                    selected = _select_with_fave_bias(all_exs, favorite_ids, n_ex, rng)
+
+                    for ex in selected:
                         used_ids.add(ex["id"])
                         exercises_out.append({
                             "exercise_id":     ex["id"],

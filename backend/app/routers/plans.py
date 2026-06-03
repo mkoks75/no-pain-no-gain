@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.db import get_conn
 from app.auth import current_user
-from app.planner import generate_plan
+from app.planner import generate_plan, week_block_number
 
 router = APIRouter()
 
@@ -76,17 +76,27 @@ def get_week_plan(week_start: date, user=Depends(current_user)):
 @router.post("/generate", status_code=201)
 def generate_week_plan(data: GenerateIn, user=Depends(current_user)):
     """Genereer automatisch een weekplan. Verwijdert bestaand concept als dat bestaat."""
+    favorite_ids = set()
+
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # Haal profiel op
+            # Haal profiel op (inclusief blok-instellingen)
             cur.execute(
-                "SELECT goal, intensity_mode, weekly_set_targets FROM profiles WHERE user_id=%s",
+                "SELECT goal, intensity_mode, weekly_set_targets, block_weeks, rotation_bump "
+                "FROM profiles WHERE user_id=%s",
                 (user["user_id"],)
             )
             profile_row = cur.fetchone()
             if not profile_row:
                 raise HTTPException(400, "Geen profiel gevonden — registreer eerst een profiel")
             profile = dict(profile_row)
+
+            # Haal favorieten op
+            cur.execute(
+                "SELECT exercise_id FROM favorites WHERE user_id=%s",
+                (user["user_id"],)
+            )
+            favorite_ids = {r["exercise_id"] for r in cur.fetchall()}
 
             # Maak of update weekplan
             cur.execute("""
@@ -125,9 +135,16 @@ def generate_week_plan(data: GenerateIn, user=Depends(current_user)):
 
         conn.commit()
 
-    # Roep planningsmotor aan (buiten transactie voor performance)
-    training_days = [{"date": d.date, "location": d.location} for d in data.days]
-    day_results   = generate_plan(profile, training_days)
+    # Bereken bloknummer en roep planningsmotor aan
+    block_number   = week_block_number(data.week_start, profile.get("block_weeks", 4))
+    training_days  = [{"date": d.date, "location": d.location} for d in data.days]
+    day_results    = generate_plan(
+        profile, training_days,
+        favorite_ids=favorite_ids,
+        block_number=block_number,
+        rotation_bump=profile.get("rotation_bump", 0),
+        user_id=user["user_id"],
+    )
 
     # Sla gegenereerde plannen op
     with get_conn() as conn:
@@ -155,6 +172,19 @@ def generate_week_plan(data: GenerateIn, user=Depends(current_user)):
     return {"week_plan_id": week_plan_id, "days_generated": len(day_results)}
 
 
+@router.post("/rotate")
+def rotate_exercises(user=Depends(current_user)):
+    """Verhoog rotation_bump met 1 zodat de planner nieuwe oefeningen trekt bij het volgende genereren."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE profiles SET rotation_bump = rotation_bump + 1 WHERE user_id=%s",
+                (user["user_id"],)
+            )
+        conn.commit()
+    return {"ok": True}
+
+
 @router.get("/day/{day_plan_id}")
 def get_day_plan(day_plan_id: int, user=Depends(current_user)):
     with get_conn() as conn:
@@ -172,7 +202,9 @@ def get_day_plan(day_plan_id: int, user=Depends(current_user)):
             cur.execute("""
                 SELECT pe.*, e.name_nl, e.name_en, e.category,
                        e.muscles_primary, e.muscles_secondary,
-                       e.image_url, e.is_cardio, e.equipment
+                       COALESCE(e.custom_image_url, e.image_url) AS image_url,
+                       e.custom_description,
+                       e.is_cardio, e.equipment
                 FROM plan_exercises pe
                 JOIN exercises e ON e.id = pe.exercise_id
                 WHERE pe.day_plan_id = %s

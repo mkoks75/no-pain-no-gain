@@ -25,24 +25,37 @@ create table if not exists profiles (
         "borst":10,"rug":10,"schouders":10,
         "biceps":8,"triceps":8,"quadriceps":10,
         "hamstrings":8,"billen":8,"kuiten":6,"core":8
-    }'::jsonb
+    }'::jsonb,
+    block_weeks         integer not null default 4,
+    rotation_bump       integer not null default 0
 );
 
 -- 3. OEFENINGEN
 create table if not exists exercises (
-    id                serial primary key,
-    wger_id           int unique,
-    name_nl           text,
-    name_en           text not null,
-    category          text,
-    equipment         text[] default '{}',
-    muscles_primary   text[] default '{}',
-    muscles_secondary text[] default '{}',
-    image_url         text,
-    description       text,
-    available_home    boolean not null default false,
-    available_gym     boolean not null default true,
-    is_cardio         boolean not null default false
+    id                  serial primary key,
+    wger_id             int unique,
+    name_nl             text,
+    name_en             text not null,
+    category            text,
+    equipment           text[] default '{}',
+    muscles_primary     text[] default '{}',
+    muscles_secondary   text[] default '{}',
+    image_url           text,
+    description         text,
+    available_home      boolean not null default false,
+    available_gym       boolean not null default true,
+    is_cardio           boolean not null default false,
+    hidden              boolean not null default false,
+    custom_description  text,
+    custom_image_url    text
+);
+
+-- 3a. FAVORIETEN
+create table if not exists favorites (
+    user_id     integer not null references users(id) on delete cascade,
+    exercise_id integer not null references exercises(id) on delete cascade,
+    created_at  timestamptz default now(),
+    primary key (user_id, exercise_id)
 );
 
 -- 4. WEEKPLANNEN
@@ -109,3 +122,5 @@ create index if not exists idx_plan_ex_day        on plan_exercises(day_plan_id)
 create index if not exists idx_sessions_user      on workout_sessions(user_id);
 create index if not exists idx_session_sets_sess  on session_sets(session_id);
 create index if not exists idx_ex_muscles         on exercises using gin(muscles_primary);
+create index if not exists idx_exercises_hidden   on exercises(hidden);
+create index if not exists idx_favorites_user     on favorites(user_id);

@@ -24,6 +24,9 @@ frontend/dist/
 # macOS
 .DS_Store
 
+# Uploaded images (persisted via bind mount, niet in git)
+backend/uploads/
+
 # IDE
 .vscode/
 .idea/

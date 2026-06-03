@@ -8,9 +8,10 @@ router = APIRouter()
 
 
 class ProfileUpdate(BaseModel):
-    goal:               Optional[str] = None
-    intensity_mode:     Optional[str] = None
+    goal:               Optional[str]  = None
+    intensity_mode:     Optional[str]  = None
     weekly_set_targets: Optional[dict] = None
+    block_weeks:        Optional[int]  = None
 
 
 class UserUpdate(BaseModel):
@@ -104,5 +105,8 @@ def update_profile(data: ProfileUpdate, user=Depends(current_user)):
                 import json
                 cur.execute("UPDATE profiles SET weekly_set_targets=%s WHERE user_id=%s",
                             (json.dumps(data.weekly_set_targets), user["user_id"]))
+            if data.block_weeks is not None:
+                cur.execute("UPDATE profiles SET block_weeks=%s WHERE user_id=%s",
+                            (data.block_weeks, user["user_id"]))
         conn.commit()
     return {"ok": True}

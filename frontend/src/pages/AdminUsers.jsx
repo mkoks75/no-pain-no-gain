@@ -10,14 +10,14 @@ export default function AdminUsers() {
   useEffect(() => { fetchUsers() }, [])
 
   async function fetchUsers() {
-    const { data } = await api.get('/users')
+    const { data } = await api.get('/users/')
     setUsers(data)
   }
 
   async function createUser(e) {
     e.preventDefault(); setErr(''); setBusy(true)
     try {
-      await api.post('/users', newUser)
+      await api.post('/users/', newUser)
       setNewUser({ name:'', email:'', password:'', is_admin:false })
       await fetchUsers()
     } catch(ex) { setErr(ex.response?.data?.detail || 'Aanmaken mislukt') }

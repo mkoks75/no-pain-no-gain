@@ -87,7 +87,7 @@ export default function WeekPlanner() {
   async function searchExercises(q) {
     setSearchQ(q)
     if (!q) { setSearchResults([]); return }
-    const { data } = await api.get('/exercises', { params: { q } })
+    const { data } = await api.get('/exercises/', { params: { q } })
     setSearchResults(data)
   }
 

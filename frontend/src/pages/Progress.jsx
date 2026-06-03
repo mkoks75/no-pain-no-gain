@@ -15,7 +15,7 @@ export default function Progress() {
   useEffect(() => {
     api.get('/progress/overview').then(r => setOverview(r.data))
     api.get('/progress/weekly').then(r => setWeekly(r.data))
-    api.get('/exercises', { params: { cardio: false } }).then(r => setExList(r.data))
+    api.get('/exercises/', { params: { cardio: false } }).then(r => setExList(r.data))
   }, [])
 
   useEffect(() => {

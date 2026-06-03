@@ -12,13 +12,19 @@ export default function ExerciseLibrary() {
 
   async function search() {
     setLoading(true)
-    const params = {}
-    if (q)        params.q        = q
-    if (location) params.location = location
-    if (cardio !== '') params.cardio = cardio === 'true'
-    const { data } = await api.get('/exercises', { params })
-    setExercises(data)
-    setLoading(false)
+    try {
+      const params = {}
+      if (q)        params.q        = q
+      if (location) params.location = location
+      if (cardio !== '') params.cardio = cardio === 'true'
+      const { data } = await api.get('/exercises/', { params })
+      setExercises(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Fout bij ophalen oefeningen:', err)
+      setExercises([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

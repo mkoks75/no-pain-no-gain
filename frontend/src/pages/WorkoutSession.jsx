@@ -47,7 +47,7 @@ export default function WorkoutSession() {
     }
     setSetData(initial)
     // Start sessie
-    const { data: sess } = await api.post('/sessions', { day_plan_id: Number(dayPlanId) })
+    const { data: sess } = await api.post('/sessions/', { day_plan_id: Number(dayPlanId) })
     setSessionId(sess.id)
   }
 

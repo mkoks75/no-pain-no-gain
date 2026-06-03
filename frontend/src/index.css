@@ -340,3 +340,52 @@ select option { background: var(--surface-2); }
 
 /* ── Recharts ────────────────────────────────────────────────── */
 .recharts-default-tooltip { background: var(--surface) !important; border: 1px solid var(--line) !important; }
+
+/* ── Mobiele responsiveness ──────────────────────────────────── */
+
+/* Voorkom horizontale overflow over de hele app */
+html, body { max-width: 100%; overflow-x: hidden; }
+
+/* Navbar mag wrappen als het niet past */
+.navbar { flex-wrap: wrap; gap: .5rem 1rem; }
+.navbar-links { flex-wrap: wrap; }
+
+@media (max-width: 600px) {
+  /* Navbar: brand op eigen regel, links eronder, logout rechts */
+  .navbar {
+    padding: .625rem .875rem;
+    gap: .5rem;
+  }
+  .navbar-brand {
+    flex: 1 1 100%;        /* brand pakt volle breedte → links zakken eronder */
+    font-size: .9375rem;
+  }
+  .navbar-links {
+    flex: 1 1 auto;
+    gap: .25rem;
+    overflow-x: auto;       /* veel links? horizontaal scrollen i.p.v. overlopen */
+    -webkit-overflow-scrolling: touch;
+  }
+  .navbar-link {
+    white-space: nowrap;    /* losse links niet midden in een woord afbreken */
+    padding: .4rem .6rem;
+  }
+  .navbar-logout {
+    margin-left: 0;         /* niet meer naar uiterst rechts duwen */
+    flex-shrink: 0;
+  }
+
+  /* Content: iets strakkere padding op mobiel */
+  .main-content { padding: 1rem .875rem 4rem; }
+
+  /* Horizontaal scrollende rijen netjes binnen het scherm houden */
+  .plan-ex-row { flex-wrap: wrap; }
+  .plan-ex-targets { gap: .4rem; }
+
+  /* Done-stats niet te ver uit elkaar op smal scherm */
+  .done-stats { gap: 1.25rem; }
+}
+
+/* Workout-mode: nooit breder dan het scherm (max-width 420px stond er al,
+   maar borg de breedte expliciet voor smalle telefoons) */
+.workout-wrap { width: 100%; }

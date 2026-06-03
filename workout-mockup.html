@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Trainingsmodus — Mockup</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --surface: #1a2129;
+    --surface-2: #232c37;
+    --line: #2e3a47;
+    --text: #eef3f8;
+    --muted: #8b97a5;
+    --accent: #4ade80;
+    --accent-dim: #1f3d2b;
+    --blue: #38bdf8;
+    --amber: #fbbf24;
+    --danger: #f87171;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: #000; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  /* Phone frame */
+  .phone {
+    width: 100%;
+    max-width: 402px;
+    min-height: 100vh;
+    background: var(--bg);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  @media (min-width: 440px) {
+    .phone {
+      margin: 24px 0;
+      min-height: auto;
+      height: 844px;
+      border-radius: 44px;
+      border: 11px solid #000;
+      box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    }
+  }
+
+  /* Header */
+  .hd {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .hd-left { min-width: 0; }
+  .hd-title { font-size: 17px; font-weight: 700; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hd-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .hd-close {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--surface-2); border: none; color: var(--muted);
+    font-size: 18px; flex-shrink: 0; cursor: pointer;
+    display: grid; place-items: center;
+  }
+
+  /* Progress bar of exercises */
+  .pbar { display: flex; gap: 5px; padding: 14px 20px 6px; flex-shrink: 0; }
+  .pseg { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+  .pseg.done { background: var(--accent); }
+  .pseg.active { background: var(--surface-2); }
+  .pseg.active::after {
+    content: ''; display: block; height: 100%; width: var(--p, 0%);
+    background: var(--accent); transition: width .3s;
+  }
+
+  /* Scroll body */
+  .body { flex: 1; overflow-y: auto; padding: 8px 20px 140px; }
+
+  .ex-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-dim);
+    padding: 5px 11px; border-radius: 100px; margin: 14px 0 10px;
+  }
+  .ex-tag.gym { color: var(--blue); background: #103043; }
+  .ex-name { font-size: 28px; font-weight: 800; letter-spacing: -.6px; line-height: 1.08; margin: 0 0 6px; }
+  .ex-meta { font-size: 13.5px; color: var(--muted); margin-bottom: 4px; }
+  .ex-target {
+    display: flex; gap: 18px; margin: 16px 0 8px; padding: 14px 16px;
+    background: var(--surface); border-radius: 14px; border: 1px solid var(--line);
+  }
+  .ex-target .t { flex: 1; }
+  .ex-target .t-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+  .ex-target .t-val { font-size: 19px; font-weight: 700; margin-top: 3px; }
+  .ex-target .t-val small { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+  /* Sets table */
+  .sets { margin-top: 18px; }
+  .sets-h {
+    display: grid; grid-template-columns: 42px 1fr 1fr 52px;
+    gap: 10px; padding: 0 6px 8px; font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .4px;
+  }
+  .set-row {
+    display: grid; grid-template-columns: 42px 1fr 1fr 52px;
+    gap: 10px; align-items: center; padding: 8px 6px;
+    border-radius: 12px; margin-bottom: 6px; transition: background .2s;
+  }
+  .set-row.done { background: var(--accent-dim); }
+  .set-row.current { background: var(--surface); outline: 1.5px solid var(--accent); }
+  .set-no { font-size: 16px; font-weight: 700; text-align: center; color: var(--muted); }
+  .set-row.done .set-no, .set-row.current .set-no { color: var(--text); }
+  .set-input {
+    width: 100%; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 11px 8px; color: var(--text);
+    font-size: 17px; font-weight: 600; text-align: center; font-family: inherit;
+  }
+  .set-input:focus { outline: none; border-color: var(--accent); }
+  .set-check {
+    width: 38px; height: 38px; border-radius: 11px; border: 1.5px solid var(--line);
+    background: var(--surface-2); color: var(--muted); font-size: 17px;
+    display: grid; place-items: center; cursor: pointer; margin: 0 auto;
+  }
+  .set-row.done .set-check { background: var(--accent); border-color: var(--accent); color: #06210f; }
+
+  .add-set {
+    width: 100%; padding: 12px; margin-top: 4px; border-radius: 12px;
+    background: transparent; border: 1.5px dashed var(--line); color: var(--muted);
+    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+
+  /* Rest timer overlay */
+  .rest {
+    position: absolute; left: 0; right: 0; bottom: 0; top: 0;
+    background: rgba(8,12,16,.82); backdrop-filter: blur(8px);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 30;
+  }
+  .rest.show { display: flex; }
+  .rest-lbl { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+  .rest-time { font-size: 76px; font-weight: 800; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+  .rest-ring { position: relative; width: 220px; height: 220px; display: grid; place-items: center; margin: 8px 0 24px; }
+  .rest-ring svg { position: absolute; transform: rotate(-90deg); }
+  .rest-ring circle { fill: none; stroke-width: 8; }
+  .rest-ring .bg { stroke: var(--surface-2); }
+  .rest-ring .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+  .rest-btns { display: flex; gap: 12px; }
+  .rest-btn {
+    padding: 13px 22px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--text); font-size: 15px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .rest-btn.skip { background: var(--accent); color: #06210f; border-color: var(--accent); }
+
+  /* Bottom action bar */
+  .footer {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+    display: flex; gap: 12px; z-index: 10;
+  }
+  .btn {
+    flex: 1; padding: 17px; border-radius: 15px; border: none;
+    font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-prev { flex: 0 0 56px; background: var(--surface-2); color: var(--muted); }
+  .btn-next { background: var(--accent); color: #06210f; }
+  .btn-next.cardio { background: var(--blue); color: #042230; }
+
+  .hint { font-size: 12px; color: var(--muted); text-align: center; padding: 6px 20px 0; }
+
+  /* Cardio block */
+  .cardio-card {
+    margin-top: 16px; padding: 22px; border-radius: 16px;
+    background: var(--surface); border: 1px solid var(--line); text-align: center;
+  }
+  .cardio-big { font-size: 44px; font-weight: 800; letter-spacing: -1px; margin: 8px 0; }
+  .cardio-controls { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+  .cardio-controls button {
+    padding: 12px 18px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--text); font-size: 15px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+  }
+
+  .done-screen { text-align: center; padding: 60px 24px; display: none; }
+  .done-screen.show { display: block; }
+  .done-check { font-size: 64px; margin-bottom: 16px; }
+  .done-h { font-size: 26px; font-weight: 800; margin-bottom: 8px; }
+  .done-p { color: var(--muted); font-size: 15px; line-height: 1.5; }
+  .done-stats { display: flex; gap: 12px; margin-top: 28px; }
+  .done-stat { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .done-stat .v { font-size: 24px; font-weight: 800; }
+  .done-stat .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <!-- HEADER -->
+  <div class="hd">
+    <div class="hd-left">
+      <div class="hd-title" id="hdTitle">Thuis · Full Body</div>
+      <div class="hd-sub" id="hdSub">Oefening 1 van 5 · ~38 min</div>
+    </div>
+    <button class="hd-close" onclick="alert('Sluit & sla voortgang op')">✕</button>
+  </div>
+
+  <!-- PROGRESS SEGMENTS -->
+  <div class="pbar" id="pbar"></div>
+
+  <!-- BODY -->
+  <div class="body" id="body"></div>
+
+  <!-- DONE SCREEN -->
+  <div class="done-screen" id="doneScreen">
+    <div class="done-check">✅</div>
+    <div class="done-h">Training klaar!</div>
+    <div class="done-p">Goed gedaan. Je voortgang is opgeslagen<br>en meegenomen in je weekoverzicht.</div>
+    <div class="done-stats">
+      <div class="done-stat"><div class="v">5</div><div class="l">oefeningen</div></div>
+      <div class="done-stat"><div class="v">3.840</div><div class="l">kg volume</div></div>
+      <div class="done-stat"><div class="v">41:12</div><div class="l">tijd</div></div>
+    </div>
+  </div>
+
+  <!-- REST OVERLAY -->
+  <div class="rest" id="rest">
+    <div class="rest-lbl">Rust</div>
+    <div class="rest-ring">
+      <svg width="220" height="220" viewBox="0 0 220 220">
+        <circle class="bg" cx="110" cy="110" r="100"></circle>
+        <circle class="fg" id="restRing" cx="110" cy="110" r="100"
+          stroke-dasharray="628" stroke-dashoffset="0"></circle>
+      </svg>
+      <div class="rest-time" id="restTime">1:30</div>
+    </div>
+    <div class="rest-btns">
+      <button class="rest-btn" onclick="addRest(15)">+15s</button>
+      <button class="rest-btn skip" onclick="skipRest()">Sla over →</button>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer" id="footer">
+    <button class="btn btn-prev" onclick="prevEx()">←</button>
+    <button class="btn btn-next" id="nextBtn" onclick="nextEx()">Volgende oefening →</button>
+  </div>
+</div>
+
+<script>
+// ---- Demo data: één sessie, gemengd thuis + één cardio blok ----
+const exercises = [
+  { type:'strength', loc:'thuis', name:'Barbell Squat', muscle:'Benen · Bilspieren',
+    targetSets:4, reps:'8–10', weight:60, rir:'2 RIR', rest:120,
+    sets:[{w:60,r:10},{w:60,r:9},{w:62.5,r:8},{w:62.5,r:8}] },
+  { type:'strength', loc:'thuis', name:'Dumbbell Bench Press', muscle:'Borst · Triceps',
+    targetSets:3, reps:'10–12', weight:24, rir:'2 RIR', rest:90,
+    sets:[{w:24,r:12},{w:24,r:11},{w:24,r:10}] },
+  { type:'strength', loc:'thuis', name:'Pull-up', muscle:'Rug · Biceps',
+    targetSets:3, reps:'max', weight:0, rir:'1 RIR', rest:90,
+    sets:[{w:0,r:9},{w:0,r:7},{w:0,r:6}] },
+  { type:'cardio', loc:'thuis', name:'Bokszak', muscle:'Conditie · Full body',
+    duration:'8:00', note:'3 ronden van 2 min, 40s rust' },
+  { type:'strength', loc:'thuis', name:'Dumbbell Shoulder Press', muscle:'Schouders',
+    targetSets:3, reps:'10–12', weight:16, rir:'2 RIR', rest:90,
+    sets:[{w:16,r:12},{w:16,r:11},{w:16,r:10}] },
+];
+
+let cur = 0;
+let restTimer = null, restRemaining = 0, restTotal = 90;
+const RING = 628;
+
+function buildPbar() {
+  const pb = document.getElementById('pbar');
+  pb.innerHTML = '';
+  exercises.forEach((_, i) => {
+    const seg = document.createElement('div');
+    seg.className = 'pseg ' + (i < cur ? 'done' : i === cur ? 'active' : '');
+    if (i === cur) seg.style.setProperty('--p', '50%');
+    pb.appendChild(seg);
+  });
+}
+
+function render() {
+  if (cur >= exercises.length) { finish(); return; }
+  const ex = exercises[cur];
+  document.getElementById('hdTitle').textContent = 'Thuis · Full Body';
+  document.getElementById('hdSub').textContent = `Oefening ${cur+1} van ${exercises.length} · ~38 min`;
+  buildPbar();
+
+  const body = document.getElementById('body');
+  const nextBtn = document.getElementById('nextBtn');
+
+  if (ex.type === 'cardio') {
+    nextBtn.className = 'btn btn-next cardio';
+    nextBtn.textContent = cur === exercises.length-1 ? 'Afronden ✓' : 'Volgende oefening →';
+    body.innerHTML = `
+      <div class="ex-tag gym">⚡ Conditieblok · ${ex.loc}</div>
+      <h1 class="ex-name">${ex.name}</h1>
+      <div class="ex-meta">${ex.muscle}</div>
+      <div class="cardio-card">
+        <div style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Doel</div>
+        <div class="cardio-big" id="cardioTime">${ex.duration}</div>
+        <div style="font-size:13px;color:var(--muted)">${ex.note}</div>
+        <div class="cardio-controls">
+          <button onclick="alert('Timer start (demo)')">▶ Start timer</button>
+          <button onclick="alert('Handmatig invoeren (demo)')">✎ Tijd invoeren</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  nextBtn.className = 'btn btn-next';
+  nextBtn.textContent = cur === exercises.length-1 ? 'Afronden ✓' : 'Volgende oefening →';
+
+  let rows = ex.sets.map((s, i) => `
+    <div class="set-row ${i===0?'current':''}" data-set="${i}">
+      <div class="set-no">${i+1}</div>
+      <input class="set-input" type="number" inputmode="decimal" value="${s.w}" aria-label="gewicht">
+      <input class="set-input" type="number" inputmode="numeric" value="${s.r}" aria-label="reps">
+      <button class="set-check" onclick="checkSet(this)">✓</button>
+    </div>`).join('');
+
+  body.innerHTML = `
+    <div class="ex-tag">🏠 Krachttraining · ${ex.loc}</div>
+    <h1 class="ex-name">${ex.name}</h1>
+    <div class="ex-meta">${ex.muscle}</div>
+    <div class="ex-target">
+      <div class="t"><div class="t-lbl">Doel</div><div class="t-val">${ex.targetSets}×${ex.reps}</div></div>
+      <div class="t"><div class="t-lbl">Gewicht</div><div class="t-val">${ex.weight}<small> kg</small></div></div>
+      <div class="t"><div class="t-lbl">Intensiteit</div><div class="t-val">${ex.rir}</div></div>
+    </div>
+    <div class="sets">
+      <div class="sets-h"><div>Set</div><div style="text-align:center">Kg</div><div style="text-align:center">Reps</div><div></div></div>
+      ${rows}
+    </div>
+    <button class="add-set" onclick="addSet()">+ Set toevoegen</button>`;
+}
+
+function checkSet(btn) {
+  const row = btn.closest('.set-row');
+  const wasDone = row.classList.contains('done');
+  row.classList.remove('current');
+  if (!wasDone) {
+    row.classList.add('done');
+    // advance current marker
+    const next = row.nextElementSibling;
+    if (next && next.classList.contains('set-row')) next.classList.add('current');
+    // start rest unless last set
+    const ex = exercises[cur];
+    if (next && next.classList.contains('set-row')) startRest(ex.rest);
+  } else {
+    row.classList.remove('done');
+  }
+}
+
+function addSet() {
+  const sets = document.querySelector('.sets');
+  const n = sets.querySelectorAll('.set-row').length;
+  const div = document.createElement('div');
+  div.className = 'set-row';
+  div.innerHTML = `<div class="set-no">${n+1}</div>
+    <input class="set-input" type="number" inputmode="decimal" value="">
+    <input class="set-input" type="number" inputmode="numeric" value="">
+    <button class="set-check" onclick="checkSet(this)">✓</button>`;
+  sets.appendChild(div);
+}
+
+// ---- Rest timer ----
+function startRest(sec) {
+  restTotal = sec; restRemaining = sec;
+  document.getElementById('rest').classList.add('show');
+  updateRest();
+  clearInterval(restTimer);
+  restTimer = setInterval(() => {
+    restRemaining--;
+    updateRest();
+    if (restRemaining <= 0) skipRest();
+  }, 1000);
+}
+function updateRest() {
+  const m = Math.floor(restRemaining/60), s = restRemaining%60;
+  document.getElementById('restTime').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  const off = RING * (1 - restRemaining/restTotal);
+  document.getElementById('restRing').style.strokeDashoffset = off;
+}
+function addRest(s) { restRemaining += s; restTotal += s; updateRest(); }
+function skipRest() {
+  clearInterval(restTimer);
+  document.getElementById('rest').classList.remove('show');
+}
+
+function nextEx() { skipRest(); cur++; document.getElementById('body').scrollTop = 0; render(); }
+function prevEx() { skipRest(); if (cur>0) cur--; render(); }
+
+function finish() {
+  document.getElementById('body').style.display = 'none';
+  document.getElementById('footer').style.display = 'none';
+  document.getElementById('pbar').style.display = 'none';
+  document.getElementById('hdSub').textContent = 'Voltooid';
+  document.getElementById('doneScreen').classList.add('show');
+}
+
+render();
+</script>
+</body>
+</html>

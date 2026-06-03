@@ -1,0 +1,39 @@
+name: Deploy no-pain-no-gain
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy naar VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key:      ${{ secrets.VPS_KEY }}
+          port:     ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            cd /opt/no-pain-no-gain
+
+            echo "=== Git pull ==="
+            git pull origin main
+
+            echo "=== Docker down ==="
+            docker compose down
+
+            echo "=== Docker up ==="
+            docker compose up --build -d
+
+            echo "=== Wacht op services ==="
+            sleep 10
+
+            echo "=== Health check ==="
+            curl -sf http://localhost:8201/health && echo "Backend OK" || echo "Backend NIET bereikbaar"
+            curl -sf http://localhost:8200/ > /dev/null && echo "Frontend OK" || echo "Frontend NIET bereikbaar"
+
+            echo "=== Deploy klaar ==="

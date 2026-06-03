@@ -1,18 +1,39 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    network_mode: host
+    environment:
+      POSTGRES_DB:       npng
+      POSTGRES_USER:     npng
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-verander_dit}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    command: postgres -p 5437
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U npng -d npng -p 5437"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build: ./backend
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./backend/.env
+    network_mode: host
+    env_file: ./backend/.env
     volumes:
       - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
     build: ./frontend
-    ports:
-      - "80:80"
+    network_mode: host
     depends_on:
       - backend
     restart: unless-stopped
+
+volumes:
+  pgdata:

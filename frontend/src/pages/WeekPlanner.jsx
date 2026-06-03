@@ -34,17 +34,42 @@ export default function WeekPlanner() {
   const [avail, setAvail]     = useState(() =>
     Object.fromEntries(DAYS_OF_WEEK.map(d => [d.offset, { active: false, location: 'thuis' }]))
   )
-  const [plan,  setPlan]      = useState(null)
-  const [busy,  setBusy]      = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [err,   setErr]       = useState('')
+  const [plan,       setPlan]      = useState(null)
+  const [busy,       setBusy]      = useState(false)
+  const [loading,    setLoading]   = useState(true)
+  const [err,        setErr]       = useState('')
+  const [blockWeeks, setBlockWeeks] = useState(4)
 
   // Zoekmodal voor oefening wisselen
   const [swapTarget,  setSwapTarget]  = useState(null)  // { day, planExId }
   const [searchQ,     setSearchQ]     = useState('')
   const [searchResults, setSearchResults] = useState([])
 
-  useEffect(() => { fetchPlan() }, [weekStart])
+  useEffect(() => { fetchPlan(); fetchProfile() }, [weekStart])
+
+  async function fetchProfile() {
+    try {
+      const { data } = await api.get('/users/me/profile')
+      if (data?.block_weeks) setBlockWeeks(data.block_weeks)
+    } catch { /* ignore */ }
+  }
+
+  async function handleBlockWeeksChange(val) {
+    const n = Number(val)
+    setBlockWeeks(n)
+    try {
+      await api.put('/users/me/profile', { block_weeks: n })
+    } catch { /* ignore */ }
+  }
+
+  async function handleRotate() {
+    setBusy(true)
+    try {
+      await api.post('/plans/rotate')
+      await handleGenerate()
+    } catch (ex) { setErr(ex.response?.data?.detail || 'Verversen mislukt') }
+    finally { setBusy(false) }
+  }
 
   async function fetchPlan() {
     setLoading(true)
@@ -152,10 +177,29 @@ export default function WeekPlanner() {
           ))}
         </div>
         {err && <p className="form-err">{err}</p>}
+        <div className="block-weeks-row">
+          <label className="block-weeks-label">
+            Bloklengte
+            <select
+              value={blockWeeks}
+              onChange={e => handleBlockWeeksChange(e.target.value)}
+              className="select-input"
+            >
+              <option value={3}>3 weken</option>
+              <option value={4}>4 weken</option>
+              <option value={6}>6 weken</option>
+            </select>
+          </label>
+        </div>
         <div className="generate-row">
           <button className="btn-primary" onClick={handleGenerate} disabled={busy}>
             {busy ? 'Bezig...' : plan ? 'Opnieuw genereren' : 'Plan genereren'}
           </button>
+          {plan && (
+            <button className="btn-secondary" onClick={handleRotate} disabled={busy} title="Nieuwe oefeningen voor hetzelfde schema">
+              Ververs
+            </button>
+          )}
           <button className="btn-secondary" onClick={() => setAvail(
             Object.fromEntries(DAYS_OF_WEEK.map(d => [d.offset, { active: false, location: 'thuis' }]))
           )}>

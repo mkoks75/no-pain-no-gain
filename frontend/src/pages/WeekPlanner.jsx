@@ -12,10 +12,18 @@ const DAYS_OF_WEEK = [
   { label: 'Zondag',    offset: 6 },
 ]
 
+// Gebruik lokale datum-opmaak om tijdzone-verschuiving via toISOString() te vermijden
+function ymd(d) {
+  const y  = d.getFullYear()
+  const m  = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
 function addDays(base, n) {
   const d = new Date(base + 'T00:00:00')
   d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
+  return ymd(d)
 }
 
 export default function WeekPlanner() {
@@ -144,9 +152,16 @@ export default function WeekPlanner() {
           ))}
         </div>
         {err && <p className="form-err">{err}</p>}
-        <button className="btn-primary" onClick={handleGenerate} disabled={busy}>
-          {busy ? 'Bezig...' : plan ? 'Opnieuw genereren' : 'Plan genereren'}
-        </button>
+        <div className="generate-row">
+          <button className="btn-primary" onClick={handleGenerate} disabled={busy}>
+            {busy ? 'Bezig...' : plan ? 'Opnieuw genereren' : 'Plan genereren'}
+          </button>
+          <button className="btn-secondary" onClick={() => setAvail(
+            Object.fromEntries(DAYS_OF_WEEK.map(d => [d.offset, { active: false, location: 'thuis' }]))
+          )}>
+            Wissen
+          </button>
+        </div>
       </section>
 
       {/* Gegenereerd plan */}

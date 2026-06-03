@@ -98,7 +98,26 @@ def generate_week_plan(data: GenerateIn, user=Depends(current_user)):
             """, (user["user_id"], data.week_start))
             week_plan_id = cur.fetchone()["id"]
 
-            # Verwijder bestaande dag- en oefeningplannen
+            # Verwijder bestaande sessies + dag-/oefeningplannen van deze week.
+            # session_sets en plan_exercises hangen onder day_plans; ruim ze in
+            # de juiste volgorde op om FK-violations te voorkomen.
+            cur.execute("""
+                DELETE FROM session_sets WHERE session_id IN (
+                    SELECT ws.id FROM workout_sessions ws
+                    JOIN day_plans dp ON dp.id = ws.day_plan_id
+                    WHERE dp.week_plan_id = %s
+                )
+            """, (week_plan_id,))
+            cur.execute("""
+                DELETE FROM workout_sessions WHERE day_plan_id IN (
+                    SELECT id FROM day_plans WHERE week_plan_id = %s
+                )
+            """, (week_plan_id,))
+            cur.execute(
+                "DELETE FROM plan_exercises WHERE day_plan_id IN "
+                "(SELECT id FROM day_plans WHERE week_plan_id=%s)",
+                (week_plan_id,)
+            )
             cur.execute(
                 "DELETE FROM day_plans WHERE week_plan_id=%s",
                 (week_plan_id,)

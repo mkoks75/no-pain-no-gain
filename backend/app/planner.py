@@ -6,18 +6,18 @@ Gebaseerd op ACSM 2026 richtlijnen.
 """
 from app.db import get_conn
 
-# Mapping: NL spiergroep → wger spiernamen
+# Mapping: NL spiergroep → spiernamen zoals ze ECHT in de database staan
 MUSCLE_TO_WGER: dict[str, list[str]] = {
-    "borst":       ["Pectoralis major"],
-    "rug":         ["Latissimus dorsi", "Trapezius"],
-    "schouders":   ["Anterior deltoid"],
-    "biceps":      ["Biceps brachii"],
-    "triceps":     ["Triceps brachii"],
-    "quadriceps":  ["Quadriceps femoris"],
-    "hamstrings":  ["Biceps femoris"],
-    "billen":      ["Gluteus maximus"],
-    "kuiten":      ["Gastrocnemius", "Soleus"],
-    "core":        ["Rectus abdominis", "Obliques"],
+    "borst":       ["Chest"],
+    "rug":         ["Lats"],
+    "schouders":   ["Shoulders"],
+    "biceps":      ["Biceps"],
+    "triceps":     ["Triceps"],
+    "quadriceps":  ["Quads"],
+    "hamstrings":  ["Hamstrings"],
+    "billen":      ["Glutes"],
+    "kuiten":      ["Calves"],
+    "core":        ["Abs"],
 }
 
 # Splits per aantal trainingsdagen (cycleert als er meer dagen zijn)
@@ -64,21 +64,39 @@ GOAL_PARAMS: dict[str, dict] = {
 }
 
 
-def _get_exercises_for_muscle(cur, muscle: str, location: str) -> list[dict]:
-    wger = MUSCLE_TO_WGER.get(muscle, [])
-    if not wger:
+def _get_exercises_for_muscle(cur, muscle: str, location: str, exclude_ids: set) -> list[dict]:
+    names = MUSCLE_TO_WGER.get(muscle, [])
+    if not names:
         return []
-    loc_filter = "available_home = TRUE" if location == "thuis" else "available_gym = TRUE"
-    cur.execute(f"""
-        SELECT id, name_nl, name_en
-        FROM exercises
-        WHERE is_cardio = FALSE
-          AND {loc_filter}
-          AND (muscles_primary && %s::text[]
-               OR muscles_secondary && %s::text[])
-        ORDER BY random()
-        LIMIT 3
-    """, (wger, wger))
+
+    exclude = list(exclude_ids) if exclude_ids else [0]
+
+    if location == "thuis":
+        # Alleen thuis-beschikbare oefeningen
+        cur.execute("""
+            SELECT id, name_nl, name_en
+            FROM exercises
+            WHERE is_cardio = FALSE
+              AND available_home = TRUE
+              AND id <> ALL(%s)
+              AND (muscles_primary && %s::text[] OR muscles_secondary && %s::text[])
+            ORDER BY random()
+            LIMIT 3
+        """, (exclude, names, names))
+    else:
+        # Sportschool: gym-only eerst (available_home=FALSE), dan de rest.
+        # Sorteer zo dat thuis-onmogelijke oefeningen bovenaan komen.
+        cur.execute("""
+            SELECT id, name_nl, name_en
+            FROM exercises
+            WHERE is_cardio = FALSE
+              AND available_gym = TRUE
+              AND id <> ALL(%s)
+              AND (muscles_primary && %s::text[] OR muscles_secondary && %s::text[])
+            ORDER BY available_home ASC, random()
+            LIMIT 3
+        """, (exclude, names, names))
+
     return [dict(r) for r in cur.fetchall()]
 
 
@@ -114,6 +132,7 @@ def generate_plan(profile: dict, training_days: list[dict]) -> list[dict]:
                 location      = day["location"]
                 exercises_out = []
                 order         = 0
+                used_ids      = set()  # voorkomt duplicaten per dag
 
                 for mg in muscle_groups:
                     weekly_sets = targets.get(mg, 10)
@@ -121,8 +140,9 @@ def generate_plan(profile: dict, training_days: list[dict]) -> list[dict]:
                     sets_today  = max(2, round(weekly_sets / freq))
                     n_ex        = max(1, min(2, round(sets_today / params["sets"])))
 
-                    exs = _get_exercises_for_muscle(cur, mg, location)[:n_ex]
+                    exs = _get_exercises_for_muscle(cur, mg, location, used_ids)[:n_ex]
                     for ex in exs:
+                        used_ids.add(ex["id"])
                         exercises_out.append({
                             "exercise_id":     ex["id"],
                             "order_idx":       order,

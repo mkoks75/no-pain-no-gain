@@ -159,6 +159,10 @@ select option { background: var(--surface-2); }
 .loc-btn       { padding:.3rem .65rem; border:1px solid var(--line); border-radius:6px; background:none; color:var(--muted); cursor:pointer; font-size:.8rem; }
 .loc-btn.sel   { background:var(--surface-2); color:var(--text); border-color:var(--accent); }
 
+.generate-row  { display:flex; gap:.5rem; align-items:stretch; margin-top:.75rem; }
+.generate-row .btn-primary  { flex:1; margin-top:0; }
+.generate-row .btn-secondary { flex-shrink:0; }
+
 .day-plan-header { display:flex; align-items:center; gap:.75rem; margin-bottom:.75rem; }
 .day-plan-header h3 { margin:0; font-size:1rem; }
 

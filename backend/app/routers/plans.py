@@ -202,7 +202,7 @@ def get_day_plan(day_plan_id: int, user=Depends(current_user)):
             cur.execute("""
                 SELECT pe.*, e.name_nl, e.name_en, e.category,
                        e.muscles_primary, e.muscles_secondary,
-                       COALESCE(e.custom_image_url, e.image_url) AS image_url,
+                       e.image_url, e.custom_image_url,
                        e.custom_description,
                        e.is_cardio, e.equipment
                 FROM plan_exercises pe

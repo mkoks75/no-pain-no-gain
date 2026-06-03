@@ -170,13 +170,12 @@ export default function WorkoutSession() {
             <div className={`ex-tag ${currentEx.is_cardio ? 'cardio' : ''}`}>
               {currentEx.is_cardio ? '⚡ Conditieblok' : '🏋️ Krachttraining'} · {dayPlan.location}
             </div>
-            {currentEx.image_url && (
-              <img
-                src={currentEx.image_url.startsWith('/uploads') ? `/api${currentEx.image_url}` : currentEx.image_url}
-                className="wo-ex-thumb"
-                alt=""
-              />
-            )}
+            {(() => {
+              const raw = currentEx.custom_image_url || currentEx.image_url
+              if (!raw) return null
+              const src = raw.startsWith('/uploads') ? `/api${raw}` : raw
+              return <img className="wo-ex-thumb" src={src} alt={currentEx.name_nl || currentEx.name_en} />
+            })()}
             <h1 className="ex-name">{currentEx.name_nl || currentEx.name_en}</h1>
             <p className="ex-meta">{currentEx.muscles_primary?.[0] || currentEx.category}</p>
             {currentEx.custom_description && (

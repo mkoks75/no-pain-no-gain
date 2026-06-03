@@ -34,7 +34,7 @@ def fetch_all(endpoint: str, params: dict = None) -> list:
     if params:
         url += "&" + "&".join(f"{k}={v}" for k, v in params.items())
     items  = []
-    client = httpx.Client(timeout=30)
+    client = httpx.Client(timeout=30, headers={"User-Agent": "no-pain-no-gain/1.0"})
     while url:
         print(f"  Ophalen: {url}")
         resp = client.get(url)
@@ -51,7 +51,7 @@ def sync():
     print("=== wger sync gestart ===")
 
     print("Oefeningen ophalen...")
-    exercises = fetch_all("exercisebaseinfo")
+    exercises = fetch_all("exerciseinfo")
     print(f"  {len(exercises)} oefeningen opgehaald.")
 
     with get_conn() as conn:
@@ -62,7 +62,7 @@ def sync():
                 # --- Namen ---
                 name_en = name_nl = None
                 for t in ex.get("translations", []):
-                    lang_id = t.get("language", {}).get("id") or t.get("language")
+                    _lang = t.get("language"); lang_id = _lang.get("id") if isinstance(_lang, dict) else _lang
                     name    = t.get("name", "").strip()
                     if not name:
                         continue
@@ -113,7 +113,7 @@ def sync():
                 # --- Omschrijving (EN) ---
                 description = None
                 for t in ex.get("translations", []):
-                    lang_id = t.get("language", {}).get("id") or t.get("language")
+                    _lang = t.get("language"); lang_id = _lang.get("id") if isinstance(_lang, dict) else _lang
                     if lang_id == EN_LANG_ID and t.get("description"):
                         description = t["description"][:2000]
                         break

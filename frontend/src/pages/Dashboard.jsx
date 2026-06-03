@@ -10,7 +10,12 @@ function getMonday(d = new Date()) {
   return dt
 }
 
-function toISO(d) { return d.toISOString().slice(0, 10) }
+function toISO(d) {
+  const y  = d.getFullYear()
+  const m  = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
 
 const WEEKDAYS = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
 
@@ -59,7 +64,7 @@ export default function Dashboard() {
         <>
           <div className="day-grid">
             {plan.days?.map(day => {
-              const d    = new Date(day.date)
+              const d    = new Date(day.date + 'T00:00:00')
               const dow  = d.getDay()
               const label = WEEKDAYS[(dow === 0 ? 6 : dow - 1)]
               const isToday = toISO(new Date()) === day.date

@@ -19,10 +19,12 @@ from app.db import get_conn
 BASE_URL = "https://wger.de/api/v2"
 
 # Equipment IDs die thuis beschikbaar zijn
-HOME_EQUIPMENT_IDS = {1, 2, 3, 4, 5, 6, 8, 9, 10}
+HOME_EQUIPMENT_IDS = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
 # 1=Barbell, 2=SZ-Bar, 3=Dumbbell, 4=Gym mat, 5=Swiss Ball,
-# 6=Pull-up bar, 8=Bench, 9=Body weight, 10=Kettlebell
-# 7=Cable, 11=Machine → gym-only
+# 6=Pull-up bar, 7=none (bodyweight exercise), 8=Bench,
+# 9=Incline bench, 10=Kettlebell, 11=Resistance band
+# Alle wger-equipment is thuis bruikbaar; gym-only oefeningen
+# (machines, kabels) worden via add_manual.py toegevoegd.
 
 NL_LANG_ID = 9   # Nederlands in wger
 EN_LANG_ID = 2   # Engels

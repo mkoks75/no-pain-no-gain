@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../store/auth'
 import api from '../api/client'
 
@@ -8,7 +8,6 @@ function imgUrl(url) {
   return url
 }
 
-const STATUS_NEXT  = { favoriet: 'actief', actief: 'inactief', inactief: 'favoriet' }
 const STATUS_LABEL = { favoriet: 'Favoriet', actief: 'Actief', inactief: 'Inactief' }
 
 const MUSCLES = [
@@ -36,13 +35,22 @@ export default function ExerciseLibrary() {
   const { user } = useAuth()
   const isAdmin  = user?.is_admin
 
-  const [exercises,    setExercises]    = useState([])
+  // Filtercriteria
   const [q,            setQ]            = useState('')
   const [location,     setLocation]     = useState('')
   const [cardio,       setCardio]       = useState('')
   const [muscleFilter, setMuscleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState(new Set(['favoriet', 'actief']))
-  const [loading,      setLoading]      = useState(false)
+
+  // Bevroren snapshot — filtercriteria bepalen de fetch; statuswijzigingen muteren
+  // alleen in-place en triggeren GEEN nieuwe fetch.
+  const [snapshot,   setSnapshot]   = useState([])
+  const [loading,    setLoading]    = useState(false)
+
+  // Bulk-selectie
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected,   setSelected]   = useState(new Set())
+  const [bulkBusy,   setBulkBusy]   = useState(false)
 
   // Nieuw oefening modal
   const [showNew,  setShowNew]  = useState(false)
@@ -57,9 +65,11 @@ export default function ExerciseLibrary() {
   const [editImage, setEditImage] = useState(null)
   const [editBusy,  setEditBusy]  = useState(false)
 
-  useEffect(() => { search() }, [q, location, cardio, muscleFilter, statusFilter])
+  // Gebruik ref om de laatste fetch te identificeren (voorkomt race-conditions)
+  const fetchIdRef = useRef(0)
 
-  async function search() {
+  const fetchSnapshot = useCallback(async () => {
+    const fetchId = ++fetchIdRef.current
     setLoading(true)
     try {
       const params = {}
@@ -69,13 +79,72 @@ export default function ExerciseLibrary() {
       if (muscleFilter)  params.muscle   = muscleFilter
       if (statusFilter.has('inactief')) params.include_inactive = true
       const { data } = await api.get('/exercises/', { params })
-      setExercises(Array.isArray(data) ? data : [])
+      if (fetchId !== fetchIdRef.current) return  // verouderde response
+      const items = Array.isArray(data) ? data : []
+      // Pas statusfilter toe voor de initiële snapshot
+      setSnapshot(items.filter(ex => statusFilter.has(ex.status || 'actief')))
     } catch (err) {
+      if (fetchId !== fetchIdRef.current) return
       console.error('Fout bij ophalen oefeningen:', err)
-      setExercises([])
+      setSnapshot([])
     } finally {
-      setLoading(false)
+      if (fetchId === fetchIdRef.current) setLoading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, location, cardio, muscleFilter, statusFilter])
+
+  useEffect(() => { fetchSnapshot() }, [fetchSnapshot])
+
+  // --- Status per oefening ---
+  async function setStatus(exId, newStatus) {
+    try {
+      await api.put(`/exercises/${exId}/status`, { status: newStatus })
+      // Muteer alleen de snapshot — geen re-fetch, item blijft op z'n plek
+      setSnapshot(prev => prev.map(x => x.id === exId ? { ...x, status: newStatus } : x))
+    } catch (err) {
+      console.error('Status wijzigen mislukt:', err)
+    }
+  }
+
+  // Geeft aan of een item na een refresh zou verdwijnen (status past niet meer bij filter)
+  function isOutOfFilter(ex) {
+    return !statusFilter.has(ex.status || 'actief')
+  }
+
+  // --- Bulk-selectie ---
+  function toggleSelect(id) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === snapshot.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(snapshot.map(ex => ex.id)))
+    }
+  }
+
+  async function bulkSetStatus(newStatus) {
+    setBulkBusy(true)
+    const ids = [...selected]
+    try {
+      await Promise.all(ids.map(id => api.put(`/exercises/${id}/status`, { status: newStatus })))
+      setSnapshot(prev => prev.map(x => selected.has(x.id) ? { ...x, status: newStatus } : x))
+      setSelected(new Set())
+    } catch (err) {
+      console.error('Bulk status mislukt:', err)
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false)
+    setSelected(new Set())
   }
 
   function toggleStatusFilter(s) {
@@ -84,17 +153,6 @@ export default function ExerciseLibrary() {
       next.has(s) ? next.delete(s) : next.add(s)
       return next
     })
-  }
-
-  async function cycleStatus(e, ex) {
-    e.stopPropagation()
-    const next = STATUS_NEXT[ex.status || 'actief']
-    try {
-      await api.put(`/exercises/${ex.id}/status`, { status: next })
-      setExercises(prev => prev.map(x => x.id === ex.id ? { ...x, status: next } : x))
-    } catch (err) {
-      console.error('Status wijzigen mislukt:', err)
-    }
   }
 
   // --- Nieuw oefening ---
@@ -138,7 +196,7 @@ export default function ExerciseLibrary() {
         })
       }
       setShowNew(false)
-      await search()
+      await fetchSnapshot()
     } catch (err) {
       setNewError(err.response?.data?.detail || 'Opslaan mislukt')
     } finally {
@@ -200,7 +258,7 @@ export default function ExerciseLibrary() {
         })
       }
       setEditEx(null)
-      await search()
+      await fetchSnapshot()
     } catch (err) {
       console.error('Opslaan mislukt:', err)
     } finally {
@@ -208,10 +266,8 @@ export default function ExerciseLibrary() {
     }
   }
 
-  const canEdit = ex =>
-    isAdmin || (ex.is_custom && ex.created_by === user?.id)
-
-  const displayed = exercises.filter(ex => statusFilter.has(ex.status || 'actief'))
+  const canEdit = ex => isAdmin || (ex.is_custom && ex.created_by === user?.id)
+  const allSelected = snapshot.length > 0 && selected.size === snapshot.length
 
   return (
     <div className="page">
@@ -220,6 +276,7 @@ export default function ExerciseLibrary() {
         <button className="btn-secondary" onClick={openNew}>+ Nieuwe oefening</button>
       </div>
 
+      {/* Filterbalk */}
       <div className="filter-bar">
         <input type="search" placeholder="Zoek..."
           value={q} onChange={e => setQ(e.target.value)} className="search-input" />
@@ -244,58 +301,142 @@ export default function ExerciseLibrary() {
         </select>
       </div>
 
-      <div className="status-filter-bar">
-        {['favoriet', 'actief', 'inactief'].map(s => (
+      {/* Status-toggles + lijst-acties */}
+      <div className="list-toolbar">
+        <div className="status-filter-bar">
+          {['favoriet', 'actief', 'inactief'].map(s => (
+            <button
+              key={s}
+              className={`status-toggle-btn status-${s}${statusFilter.has(s) ? ' active' : ''}`}
+              onClick={() => toggleStatusFilter(s)}
+            >
+              {STATUS_LABEL[s]}
+            </button>
+          ))}
+        </div>
+
+        <div className="list-actions">
           <button
-            key={s}
-            className={`status-toggle-btn status-${s}${statusFilter.has(s) ? ' active' : ''}`}
-            onClick={() => toggleStatusFilter(s)}
+            className="icon-btn-sm"
+            onClick={fetchSnapshot}
+            disabled={loading}
+            title="Haal een verse lijst op op basis van de huidige filters"
           >
-            {STATUS_LABEL[s]}
+            ↺ Verversen
           </button>
-        ))}
+          {!selectMode
+            ? <button className="icon-btn-sm" onClick={() => setSelectMode(true)}>Selecteer</button>
+            : <button className="icon-btn-sm" onClick={exitSelectMode}>Klaar</button>
+          }
+        </div>
       </div>
 
-      {loading ? <p className="muted">Laden...</p> : (
-        <div className="ex-list">
-          {displayed.map(ex => (
-            <div key={ex.id} className={`ex-item${ex.status === 'inactief' ? ' ex-item--inactive' : ''}`}>
-              <div className="ex-item-left">
-                <strong>{ex.name_nl || ex.name_en}</strong>
-                {ex.name_nl && ex.name_en && <span className="muted">{ex.name_en}</span>}
-                <div className="ex-tags">
-                  {ex.muscles_primary?.map(m => (
-                    <span key={m} className="ex-chip">{m}</span>
-                  ))}
-                  {ex.is_custom && <span className="ex-chip ex-chip--custom">eigen</span>}
-                </div>
-              </div>
-              <div className="ex-item-right">
-                <span className="ex-meta">{ex.category}</span>
-                <div className="loc-icons">
-                  {ex.available_home && <span title="Thuis">🏠</span>}
-                  {ex.available_gym  && <span title="Sportschool">🏋️</span>}
-                  {ex.is_cardio      && <span title="Cardio">⚡</span>}
-                </div>
-                <div className="ex-item-actions">
-                  <button
-                    className={`status-badge status-badge--${ex.status || 'actief'}`}
-                    onClick={e => cycleStatus(e, ex)}
-                    title="Klik om status te wijzigen"
-                  >
-                    {STATUS_LABEL[ex.status || 'actief']}
-                  </button>
-                  {canEdit(ex) && (
-                    <button className="edit-btn" onClick={() => openEdit(ex)} title="Bewerken">
-                      ✏
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+      {/* Bulk-actiebalk */}
+      {selectMode && selected.size > 0 && (
+        <div className="bulk-bar">
+          <span className="bulk-count">{selected.size} geselecteerd</span>
+          <span className="bulk-label">Zet op →</span>
+          {['favoriet', 'actief', 'inactief'].map(s => (
+            <button
+              key={s}
+              className={`bulk-status-btn bulk-status-btn--${s}`}
+              onClick={() => bulkSetStatus(s)}
+              disabled={bulkBusy}
+            >
+              {STATUS_LABEL[s]}
+            </button>
           ))}
-          {!displayed.length && <p className="muted">Geen oefeningen gevonden.</p>}
         </div>
+      )}
+
+      {loading ? <p className="muted">Laden...</p> : (
+        <>
+          {selectMode && snapshot.length > 0 && (
+            <label className="select-all-row">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+              />
+              Alles selecteren ({snapshot.length})
+            </label>
+          )}
+
+          <div className="ex-list">
+            {snapshot.map(ex => {
+              const outOfFilter = isOutOfFilter(ex)
+              const isSelected  = selected.has(ex.id)
+              return (
+                <div
+                  key={ex.id}
+                  className={[
+                    'ex-item',
+                    outOfFilter     ? 'ex-item--pending-hide' : '',
+                    isSelected      ? 'ex-item--selected'     : '',
+                    selectMode      ? 'ex-item--selectable'   : '',
+                  ].filter(Boolean).join(' ')}
+                  onClick={selectMode ? () => toggleSelect(ex.id) : undefined}
+                >
+                  {selectMode && (
+                    <input
+                      type="checkbox"
+                      className="ex-checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(ex.id)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  )}
+
+                  <div className="ex-item-left">
+                    <strong>{ex.name_nl || ex.name_en}</strong>
+                    {ex.name_nl && ex.name_en && <span className="muted">{ex.name_en}</span>}
+                    <div className="ex-tags">
+                      {ex.muscles_primary?.map(m => (
+                        <span key={m} className="ex-chip">{m}</span>
+                      ))}
+                      {ex.is_custom && <span className="ex-chip ex-chip--custom">eigen</span>}
+                    </div>
+                    {outOfFilter && (
+                      <span className="pending-hide-label">verdwijnt bij verversen</span>
+                    )}
+                  </div>
+
+                  <div className="ex-item-right">
+                    <span className="ex-meta">{ex.category}</span>
+                    <div className="loc-icons">
+                      {ex.available_home && <span title="Thuis">🏠</span>}
+                      {ex.available_gym  && <span title="Sportschool">🏋️</span>}
+                      {ex.is_cardio      && <span title="Cardio">⚡</span>}
+                    </div>
+                    {!selectMode && (
+                      <div className="ex-item-actions">
+                        <div className="status-seg">
+                          {['favoriet', 'actief', 'inactief'].map(s => (
+                            <button
+                              key={s}
+                              className={`status-seg-btn status-seg-btn--${s}${(ex.status || 'actief') === s ? ' active' : ''}`}
+                              onClick={e => { e.stopPropagation(); setStatus(ex.id, s) }}
+                              disabled={(ex.status || 'actief') === s}
+                              title={STATUS_LABEL[s]}
+                            >
+                              {s === 'favoriet' ? '★' : s === 'actief' ? '●' : '○'}
+                            </button>
+                          ))}
+                        </div>
+                        {canEdit(ex) && (
+                          <button className="edit-btn" onClick={e => { e.stopPropagation(); openEdit(ex) }} title="Bewerken">
+                            ✏
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {!snapshot.length && <p className="muted">Geen oefeningen gevonden.</p>}
+          </div>
+        </>
       )}
 
       {/* Nieuw oefening modal */}

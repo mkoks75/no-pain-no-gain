@@ -49,8 +49,9 @@ input, select, button, textarea { font: inherit; }
 
 .page {}
 .page-header  { display:flex; align-items:center; gap:.75rem; margin-bottom:1.5rem; }
-.page-header h2 { margin:0; font-size:1.25rem; }
+.page-header h2 { margin:0; font-size:1.25rem; flex:1; }
 .page-title   { font-size: 1.35rem; font-weight: 700; margin: 0 0 1.5rem; }
+.page-header .page-title { margin:0; flex:1; }
 
 .section       { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.25rem; }
 .section-title { font-size: 1rem; font-weight: 600; margin: 0 0 1rem; }
@@ -191,29 +192,46 @@ select option { background: var(--surface-2); }
 .search-result-item .muted { font-size:.78rem; }
 
 /* ── Exercise library ────────────────────────────────────────── */
-.filter-bar { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1rem; }
+.filter-bar { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem; }
 .filter-bar .search-input { flex:2; min-width:160px; }
 .filter-bar .select-input { flex:1; min-width:120px; }
 
-.fav-filter-btn {
-  padding:.5rem .875rem; border-radius:8px;
+/* Status filter toggles */
+.status-filter-bar { display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:1rem; }
+.status-toggle-btn {
+  padding:.35rem .8rem; border-radius:100px;
   border:1px solid var(--line); background:none; color:var(--muted);
-  cursor:pointer; font-size:.85rem; white-space:nowrap;
+  cursor:pointer; font-size:.8rem; font-weight:600;
+  transition: border-color .15s, color .15s, background .15s;
 }
-.fav-filter-btn:hover  { border-color:var(--danger); color:var(--danger); }
-.fav-filter-btn.active { border-color:var(--danger); color:var(--danger); background:rgba(248,113,113,.08); }
+.status-toggle-btn.status-favoriet.active  { border-color:var(--amber);  color:var(--amber);  background:rgba(251,191,36,.1); }
+.status-toggle-btn.status-actief.active    { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+.status-toggle-btn.status-inactief.active  { border-color:var(--muted);  color:var(--muted);  background:rgba(139,151,165,.1); }
 
 .ex-list  { display:flex; flex-direction:column; gap:.5rem; }
-.ex-item  { display:flex; justify-content:space-between; align-items:flex-start; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:.875rem 1rem; gap:.5rem; }
+.ex-item  { display:flex; justify-content:space-between; align-items:flex-start; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:.875rem 1rem; gap:.5rem; transition: opacity .15s; }
+.ex-item--inactive { opacity:.5; }
 .ex-item-left { display:flex; flex-direction:column; gap:.2rem; }
 .ex-item-left strong { font-size:.9rem; }
 .ex-item-left .muted { font-size:.78rem; }
 .ex-tags { display:flex; flex-wrap:wrap; gap:.2rem; margin-top:.2rem; }
+.ex-chip--custom { color:var(--blue); background:#103043; }
 .ex-item-right { display:flex; flex-direction:column; align-items:flex-end; gap:.3rem; }
 .ex-meta { font-size:.78rem; color:var(--muted); }
 .loc-icons { display:flex; gap:.25rem; font-size:.9rem; }
 
 .ex-item-actions { display:flex; gap:.35rem; align-items:center; margin-top:.1rem; }
+
+/* Per-exercise status badge */
+.status-badge {
+  padding:.2rem .55rem; border-radius:100px; cursor:pointer;
+  font-size:.72rem; font-weight:600; border:1px solid transparent;
+  transition: filter .15s;
+}
+.status-badge:hover { filter: brightness(1.25); }
+.status-badge--favoriet  { background:rgba(251,191,36,.15); color:var(--amber);  border-color:rgba(251,191,36,.35); }
+.status-badge--actief    { background:var(--accent-dim);    color:var(--accent); border-color:rgba(74,222,128,.25); }
+.status-badge--inactief  { background:var(--surface-2);     color:var(--muted);  border-color:var(--line); }
 
 .fav-btn {
   background:none; border:none; cursor:pointer;
@@ -228,6 +246,22 @@ select option { background: var(--surface-2); }
   font-size:.875rem; color:var(--muted); padding:0 .15rem;
 }
 .edit-btn:hover { color:var(--accent); }
+
+/* Eigen oefening formulier */
+.modal--wide { max-width: 600px !important; max-height: 90vh !important; overflow-y: auto; }
+.muscle-selects { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+.muscle-chips   { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.3rem; }
+.muscle-chip {
+  padding:.25rem .6rem; border-radius:6px; font-size:.78rem;
+  border:1px solid var(--line); background:none; color:var(--muted);
+  cursor:pointer; transition: border-color .12s, color .12s, background .12s;
+}
+.muscle-chip:hover  { border-color:var(--accent); color:var(--accent); }
+.muscle-chip.active { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+.label-block { display:block; font-size:.8rem; color:var(--muted); margin-bottom:.1rem; }
+.checkbox-row { display:flex; flex-wrap:wrap; gap:.75rem; }
+.required { color:var(--danger); }
+.error-text { color:var(--danger); font-size:.85rem; margin:0; }
 
 /* Edit modal extras */
 .edit-textarea {

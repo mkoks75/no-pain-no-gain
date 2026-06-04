@@ -83,10 +83,11 @@ def _make_rng(muscle: str, block_number: int, rotation_bump: int, user_id: int) 
     return random.Random(seed)
 
 
-def _get_candidates(cur, muscle: str, location: str, exclude_ids: set) -> list[dict]:
+def _get_candidates(cur, muscle: str, location: str, exclude_ids: set, user_id: int) -> list[dict]:
     """
     Haal ALLE passende oefeningen op (geen LIMIT, geen ORDER BY random in SQL).
     Gesorteerd op id voor determinisme; Python-zijde doet de seeded shuffle.
+    Sluit oefeningen uit die de gebruiker op 'inactief' heeft gezet.
     """
     names   = MUSCLE_TO_WGER.get(muscle, [])
     if not names:
@@ -95,27 +96,31 @@ def _get_candidates(cur, muscle: str, location: str, exclude_ids: set) -> list[d
 
     if location == "thuis":
         cur.execute("""
-            SELECT id, name_nl, name_en
-            FROM exercises
-            WHERE is_cardio = FALSE
-              AND available_home = TRUE
-              AND hidden = FALSE
-              AND id <> ALL(%s)
-              AND (muscles_primary && %s::text[] OR muscles_secondary && %s::text[])
-            ORDER BY id
-        """, (exclude, names, names))
+            SELECT e.id, e.name_nl, e.name_en
+            FROM exercises e
+            LEFT JOIN exercise_status es ON es.exercise_id = e.id AND es.user_id = %s
+            WHERE e.is_cardio = FALSE
+              AND e.available_home = TRUE
+              AND e.hidden = FALSE
+              AND e.id <> ALL(%s)
+              AND (e.muscles_primary && %s::text[] OR e.muscles_secondary && %s::text[])
+              AND COALESCE(es.status, 'actief') <> 'inactief'
+            ORDER BY e.id
+        """, (user_id, exclude, names, names))
     else:
         # Sportschool: gym-only (available_home=FALSE) eerst → benut machines
         cur.execute("""
-            SELECT id, name_nl, name_en
-            FROM exercises
-            WHERE is_cardio = FALSE
-              AND available_gym = TRUE
-              AND hidden = FALSE
-              AND id <> ALL(%s)
-              AND (muscles_primary && %s::text[] OR muscles_secondary && %s::text[])
-            ORDER BY available_home ASC, id
-        """, (exclude, names, names))
+            SELECT e.id, e.name_nl, e.name_en
+            FROM exercises e
+            LEFT JOIN exercise_status es ON es.exercise_id = e.id AND es.user_id = %s
+            WHERE e.is_cardio = FALSE
+              AND e.available_gym = TRUE
+              AND e.hidden = FALSE
+              AND e.id <> ALL(%s)
+              AND (e.muscles_primary && %s::text[] OR e.muscles_secondary && %s::text[])
+              AND COALESCE(es.status, 'actief') <> 'inactief'
+            ORDER BY e.available_home ASC, e.id
+        """, (user_id, exclude, names, names))
 
     return [dict(r) for r in cur.fetchall()]
 
@@ -205,7 +210,7 @@ def generate_plan(
                     n_ex        = max(1, min(2, round(sets_today / params["sets"])))
 
                     rng      = _make_rng(mg, block_number, rotation_bump, user_id)
-                    all_exs  = _get_candidates(cur, mg, location, used_ids)
+                    all_exs  = _get_candidates(cur, mg, location, used_ids, user_id)
                     selected = _select_with_fave_bias(all_exs, favorite_ids, n_ex, rng)
 
                     for ex in selected:

@@ -91,9 +91,9 @@ def generate_week_plan(data: GenerateIn, user=Depends(current_user)):
                 raise HTTPException(400, "Geen profiel gevonden — registreer eerst een profiel")
             profile = dict(profile_row)
 
-            # Haal favorieten op
+            # Haal favorieten op uit exercise_status
             cur.execute(
-                "SELECT exercise_id FROM favorites WHERE user_id=%s",
+                "SELECT exercise_id FROM exercise_status WHERE user_id=%s AND status='favoriet'",
                 (user["user_id"],)
             )
             favorite_ids = {r["exercise_id"] for r in cur.fetchall()}

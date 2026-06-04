@@ -391,46 +391,48 @@ export default function ExerciseLibrary() {
                     <strong>{ex.name_nl || ex.name_en}</strong>
                     {ex.name_nl && ex.name_en && <span className="muted">{ex.name_en}</span>}
                     <div className="ex-tags">
+                      {ex.category && (
+                        <span className="ex-chip ex-chip--cat">{ex.category}</span>
+                      )}
                       {ex.muscles_primary?.map(m => (
                         <span key={m} className="ex-chip">{m}</span>
                       ))}
-                      {ex.is_custom && <span className="ex-chip ex-chip--custom">eigen</span>}
+                      {ex.available_home && <span className="ex-chip ex-chip--loc">🏠 Thuis</span>}
+                      {ex.available_gym  && <span className="ex-chip ex-chip--loc">🏋️ Sport</span>}
+                      {ex.is_cardio      && <span className="ex-chip ex-chip--loc">⚡ Cardio</span>}
+                      {ex.is_custom      && <span className="ex-chip ex-chip--custom">eigen</span>}
                     </div>
                     {outOfFilter && (
                       <span className="pending-hide-label">verdwijnt bij verversen</span>
                     )}
                   </div>
 
-                  <div className="ex-item-right">
-                    <span className="ex-meta">{ex.category}</span>
-                    <div className="loc-icons">
-                      {ex.available_home && <span title="Thuis">🏠</span>}
-                      {ex.available_gym  && <span title="Sportschool">🏋️</span>}
-                      {ex.is_cardio      && <span title="Cardio">⚡</span>}
-                    </div>
-                    {!selectMode && (
-                      <div className="ex-item-actions">
-                        <div className="status-seg">
-                          {['favoriet', 'actief', 'inactief'].map(s => (
-                            <button
-                              key={s}
-                              className={`status-seg-btn status-seg-btn--${s}${(ex.status || 'actief') === s ? ' active' : ''}`}
-                              onClick={e => { e.stopPropagation(); setStatus(ex.id, s) }}
-                              disabled={(ex.status || 'actief') === s}
-                              title={STATUS_LABEL[s]}
-                            >
-                              {s === 'favoriet' ? '★' : s === 'actief' ? '●' : '○'}
-                            </button>
-                          ))}
-                        </div>
-                        {canEdit(ex) && (
-                          <button className="edit-btn" onClick={e => { e.stopPropagation(); openEdit(ex) }} title="Bewerken">
-                            ✏
+                  {!selectMode && (
+                    <div className="ex-item-right">
+                      <div className="status-seg">
+                        {['favoriet', 'actief', 'inactief'].map(s => (
+                          <button
+                            key={s}
+                            className={`status-seg-btn status-seg-btn--${s}${(ex.status || 'actief') === s ? ' active' : ''}`}
+                            onClick={e => { e.stopPropagation(); setStatus(ex.id, s) }}
+                            disabled={(ex.status || 'actief') === s}
+                            title={STATUS_LABEL[s]}
+                          >
+                            {s === 'favoriet' ? '★' : s === 'actief' ? '●' : '○'}
                           </button>
-                        )}
+                        ))}
                       </div>
-                    )}
-                  </div>
+                      {canEdit(ex) && (
+                        <button
+                          className="ex-edit-btn"
+                          onClick={e => { e.stopPropagation(); openEdit(ex) }}
+                          title="Bewerken"
+                        >
+                          ✏
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}

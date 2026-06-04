@@ -253,21 +253,37 @@ select option { background: var(--surface-2); }
 }
 .ex-checkbox { flex-shrink:0; width:16px; height:16px; margin-top:.15rem; cursor:pointer; accent-color:var(--accent); }
 
-.ex-item-left { display:flex; flex-direction:column; gap:.2rem; flex:1; min-width:0; }
+.ex-item-left { display:flex; flex-direction:column; gap:.25rem; flex:1; min-width:0; }
 .ex-item-left strong { font-size:.9rem; }
 .ex-item-left .muted { font-size:.78rem; }
-.ex-tags { display:flex; flex-wrap:wrap; gap:.2rem; margin-top:.2rem; }
+.ex-tags { display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.15rem; }
+
+/* Chip-varianten */
+/* Categorie: kleinste, meest gedimd — duidelijk een label, geen spiergroep */
+.ex-chip--cat    { font-size:.68rem; opacity:.7; letter-spacing:.2px; text-transform:uppercase; }
+/* Locatie/cardio: zelfde grootte als spiergroepen, iets blauwgrijs getint */
+.ex-chip--loc    { color:#7aafca; background:rgba(56,189,248,.08); }
 .ex-chip--custom { color:var(--blue); background:#103043; }
+
 .pending-hide-label {
-  font-size:.7rem; color:var(--amber); margin-top:.2rem;
+  font-size:.7rem; color:var(--amber); margin-top:.1rem;
   font-style:italic;
 }
 
-.ex-item-right { display:flex; flex-direction:column; align-items:flex-end; gap:.3rem; flex-shrink:0; }
-.ex-meta { font-size:.78rem; color:var(--muted); }
-.loc-icons { display:flex; gap:.25rem; font-size:.9rem; }
+.ex-item-right {
+  display:flex; flex-direction:column; align-items:flex-end;
+  gap:.5rem; flex-shrink:0; align-self:center;
+}
 
-.ex-item-actions { display:flex; gap:.35rem; align-items:center; margin-top:.1rem; }
+/* Grote, goed klikbare bewerk-knop */
+.ex-edit-btn {
+  display:grid; place-items:center;
+  width:36px; height:36px;
+  background:var(--surface-2); border:1px solid var(--line);
+  border-radius:8px; color:var(--muted); cursor:pointer;
+  font-size:1rem;
+}
+.ex-edit-btn:hover { border-color:var(--accent); color:var(--accent); }
 
 /* Segmented status control per oefening */
 .status-seg {

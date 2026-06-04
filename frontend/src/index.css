@@ -393,7 +393,7 @@ select option { background: var(--surface-2); }
   background: var(--accent); transition: width .3s;
 }
 
-.wo-body { flex:1; overflow-y:auto; padding:.5rem 1.25rem 8rem; }
+.wo-body { flex:1; overflow-y:auto; overflow-x:hidden; padding:.5rem 1.25rem 8rem; }
 
 .ex-tag {
   display:inline-flex; align-items:center; gap:6px;
@@ -402,7 +402,7 @@ select option { background: var(--surface-2); }
   padding:5px 11px; border-radius:100px; margin:1rem 0 .625rem;
 }
 .ex-tag.cardio { color:var(--blue); background:#103043; }
-.ex-name  { font-size:1.75rem; font-weight:800; letter-spacing:-.5px; line-height:1.1; margin:0 0 .375rem; }
+.ex-name  { font-size:1.75rem; font-weight:800; letter-spacing:-.5px; line-height:1.1; margin:0 0 .375rem; overflow-wrap:anywhere; }
 .ex-meta  { font-size:.85rem; color:var(--muted); margin:0 0 .5rem; }
 
 .wo-ex-thumb {
@@ -430,8 +430,8 @@ select option { background: var(--surface-2); }
 .t-val { font-size:1.0625rem; font-weight:700; margin-top:2px; }
 
 .sets-table { margin:1rem 0 0; }
-.sets-h     { display:grid; grid-template-columns:32px 1fr 1fr 40px; gap:.5rem; font-size:.75rem; color:var(--muted); padding:0 .25rem .4rem; }
-.set-row    { display:grid; grid-template-columns:32px 1fr 1fr 40px; gap:.5rem; align-items:center; padding:.35rem .25rem; border-radius:8px; }
+.sets-h     { display:grid; grid-template-columns:32px minmax(0,1fr) minmax(0,1fr) 40px; gap:.5rem; font-size:.75rem; color:var(--muted); padding:0 .25rem .4rem; }
+.set-row    { display:grid; grid-template-columns:32px minmax(0,1fr) minmax(0,1fr) 40px; gap:.5rem; align-items:center; padding:.35rem .25rem; border-radius:8px; }
 .set-row.done { opacity:.55; }
 .set-no     { font-size:.85rem; color:var(--muted); text-align:center; }
 .set-input  {
@@ -439,6 +439,7 @@ select option { background: var(--surface-2); }
   padding:.5rem .4rem; text-align:center; color:var(--text);
   font-size:1rem; font-weight:600;
   -moz-appearance: textfield;
+  min-width:0; width:100%;
 }
 .set-input::-webkit-outer-spin-button,
 .set-input::-webkit-inner-spin-button { -webkit-appearance: none; }

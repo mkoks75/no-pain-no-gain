@@ -100,6 +100,7 @@ def _get_candidates(cur, muscle: str, location: str, exclude_ids: set, user_id: 
             FROM exercises e
             LEFT JOIN exercise_status es ON es.exercise_id = e.id AND es.user_id = %s
             WHERE e.is_cardio = FALSE
+              AND e.is_mobility IS NOT TRUE
               AND e.available_home = TRUE
               AND e.hidden = FALSE
               AND e.id <> ALL(%s)
@@ -114,6 +115,7 @@ def _get_candidates(cur, muscle: str, location: str, exclude_ids: set, user_id: 
             FROM exercises e
             LEFT JOIN exercise_status es ON es.exercise_id = e.id AND es.user_id = %s
             WHERE e.is_cardio = FALSE
+              AND e.is_mobility IS NOT TRUE
               AND e.available_gym = TRUE
               AND e.hidden = FALSE
               AND e.id <> ALL(%s)
